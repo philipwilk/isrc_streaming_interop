@@ -1,0 +1,10 @@
+[package]
+name = "isrc_streaming_interop"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+google-youtube3 = "5.0.4"
+spotify-rs = "0.3.10"
+tokio = { version = "1.36.0", features = [ "full" ] } 
+
