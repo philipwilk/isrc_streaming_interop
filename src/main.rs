@@ -1,5 +1,11 @@
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Hello, world!");
+    // Get spotify playlist
+
+    // convert to isrcs
+
+    // get yt songs
+
+    // add to yt playlist
     Ok(())
 }
