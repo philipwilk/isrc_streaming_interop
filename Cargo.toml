@@ -8,3 +8,4 @@ google-youtube3 = "5.0.4"
 spotify-rs = "0.3.10"
 tokio = { version = "1.36.0", features = [ "full" ] } 
 isrc = { git = "https://github.com/philipwilk/isrc-enum.git" }
+open = "5.1.2"
