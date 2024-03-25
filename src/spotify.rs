@@ -8,6 +8,7 @@ use spotify_rs::{
 use std::env;
 use std::error::Error;
 use std::net::TcpListener;
+use std::time::Instant;
 
 struct ClientDetails {
     id: String,
@@ -71,8 +72,46 @@ async fn authenticate() -> Result<Client<Token, AuthCodeFlow, NoVerifier>, Box<d
 pub async fn get_playlist() -> Result<Vec<Isrc>, Box<dyn Error>> {
     let mut spot = authenticate().await?;
 
-    //let album = spot.get_current_user_profile().await.unwrap();
+    // isrcs of songs that have them
+    let mut saved: Vec<Isrc> = vec![];
+    // spotify ids of songs without isrcs
+    let mut missing: Vec<String> = vec![];
+    let mut offset = 0;
+    let now = Instant::now();
+    loop {
+        println! {"Fetching tracks {} to {}", offset, offset+50};
+        let current = spot.saved_tracks().offset(offset).limit(50).get().await?;
+        for item in current.items {
+            match item.track.external_ids.isrc {
+                Some(i) => {
+                    let code: Result<Isrc, _> = i.clone().try_into();
+                    match code {
+                        Ok(code) => {
+                            saved.push(code);
+                        }
+                        _ => {
+                            println! {"Non-conformant (probably a new overflow CC): {}", i};
+                            missing.push(item.track.id);
+                        }
+                    }
+                }
+                None => {
+                    missing.push(item.track.id);
+                }
+            }
+        }
+        if offset + 50 < current.total {
+            offset += 50;
+        } else {
+            break;
+        }
+    }
 
+    println! {"time taken: {}s", now.elapsed().as_secs()};
+    println! {"saved tracks with isrcs: {}", saved.len()};
+    println! {"saved tracks missing isrcs: {}", missing.len()};
+
+    //let album = spot.get_current_user_profile().await.unwrap();
     //println! {"{:#?}", album};
 
     todo! {};
