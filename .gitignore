@@ -6,3 +6,5 @@ result-*
 
 # Misc
 .direnv
+client_secret.json
+tokens.json

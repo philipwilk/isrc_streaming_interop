@@ -1,5 +1,6 @@
 mod spotify;
 mod utils;
+mod youtube;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,15 +9,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // println! {"Total liked songs: {}", saves.len()};
 
-    // using my gym playlist rn bc it's small
-    let playlist = spotify::get_playlist("5TgNOf91pDgdWG6HprVnGf").await?;
+    // hard code using tiny playlist so i dont use all my yt api quota
+    let playlist = spotify::get_playlist("1Kq3R9PDGsi6fqkxnAnIYU").await?;
 
     println! {"Total songs in playlist: {}", playlist.len()};
-
-    // convert to isrcs
-
     // get yt songs
+    let youtube_ids = youtube::playlist_to_ids(playlist).await?;
 
+    println! {"found tracks with yt ids: {:#?}", youtube_ids.found};
+    println! {"Missing or untagged track isrcs: {:?}", youtube_ids.missing};
+
+    todo! {};
     // add to yt playlist
     Ok(())
 }
