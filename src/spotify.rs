@@ -3,6 +3,7 @@ use isrc::Isrc;
 use spotify_rs::{
     auth::{AuthCodeFlow, NoVerifier, Token},
     client::Client,
+    model::PlayableItem,
     AuthCodeClient, RedirectUrl,
 };
 use std::env;
@@ -69,7 +70,7 @@ async fn authenticate() -> Result<Client<Token, AuthCodeFlow, NoVerifier>, Box<d
     }
 }
 
-pub async fn get_playlist() -> Result<Vec<Isrc>, Box<dyn Error>> {
+pub async fn get_saved_tracks() -> Result<Vec<Isrc>, Box<dyn Error>> {
     let mut spot = authenticate().await?;
 
     // isrcs of songs that have them
@@ -111,8 +112,58 @@ pub async fn get_playlist() -> Result<Vec<Isrc>, Box<dyn Error>> {
     println! {"saved tracks with isrcs: {}", saved.len()};
     println! {"saved tracks missing isrcs: {}", missing.len()};
 
-    //let album = spot.get_current_user_profile().await.unwrap();
-    //println! {"{:#?}", album};
+    Ok(saved)
+}
 
-    todo! {};
+pub async fn get_playlist(playlist_id: &str) -> Result<Vec<Isrc>, Box<dyn Error>> {
+    let mut spot = authenticate().await?;
+    let mut playlist: Vec<Isrc> = vec![];
+    // spotify ids of songs without isrcs
+    let mut missing: Vec<String> = vec![];
+    let mut offset = 0;
+    let now = Instant::now();
+    loop {
+        println! {"Fetching tracks {} to {}", offset, offset+50};
+        let current = spot
+            .playlist_items(playlist_id)
+            .offset(offset)
+            .limit(50)
+            .get()
+            .await?;
+        for item in current.items {
+            match item.track {
+                PlayableItem::Track(item) => match item.external_ids.isrc {
+                    Some(i) => {
+                        let code: Result<Isrc, _> = i.clone().try_into();
+                        match code {
+                            Ok(code) => {
+                                playlist.push(code);
+                            }
+                            _ => {
+                                println! {"Non-conformant (probably a new overflow CC): {}", i};
+                                missing.push(item.id);
+                            }
+                        }
+                    }
+                    None => {
+                        missing.push(item.id);
+                    }
+                },
+                PlayableItem::Episode(ep) => {
+                    println! {"Episodes/podcasts do not have isrcs so cannot use this tool; {}", ep.id};
+                }
+            }
+        }
+        if offset + 50 < current.total {
+            offset += 50;
+        } else {
+            break;
+        }
+    }
+
+    println! {"time taken: {}s", now.elapsed().as_secs()};
+    println! {"tracks with isrcs: {}", playlist.len()};
+    println! {"tracks missing isrcs: {}", missing.len()};
+
+    Ok(playlist)
 }
