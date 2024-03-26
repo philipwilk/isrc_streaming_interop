@@ -1,3 +1,7 @@
+use google_youtube3::api::{
+    Playlist, PlaylistItem, PlaylistItemContentDetails, PlaylistItemSnippet, PlaylistSnippet,
+    PlaylistStatus, ResourceId,
+};
 use google_youtube3::hyper::client::HttpConnector;
 use google_youtube3::{hyper, hyper_rustls, oauth2, YouTube};
 use isrc::Isrc;
@@ -95,4 +99,83 @@ pub async fn playlist_to_ids(playlist: Vec<Isrc>) -> Result<PlaylistResults, Box
     }
 
     Ok(PlaylistResults { found, missing })
+}
+
+pub async fn create_playlist(
+    playlist_name: String,
+    tracks: Vec<String>,
+) -> Result<String, Box<dyn Error>> {
+    let youtube = authenticate().await?;
+
+    let playlist = Playlist {
+        content_details: None,
+        etag: None,
+        id: None,
+        kind: None,
+        localizations: None,
+        player: None,
+        snippet: Some(PlaylistSnippet {
+            channel_id: None,
+            channel_title: None,
+            default_language: None,
+            description: None,
+            localized: None,
+            published_at: None,
+            tags: None,
+            thumbnail_video_id: None,
+            thumbnails: None,
+            title: Some(playlist_name),
+        }),
+        status: Some(PlaylistStatus {
+            privacy_status: Some("private".into()),
+        }),
+    };
+    let id = youtube
+        .playlists()
+        .insert(playlist)
+        .doit()
+        .await?
+        .1
+        .id
+        .unwrap();
+
+    for track in tracks {
+        youtube
+            .playlist_items()
+            .insert(PlaylistItem {
+                content_details: Some(PlaylistItemContentDetails {
+                    end_at: None,
+                    note: None,
+                    start_at: None,
+                    video_id: Some(track.clone()),
+                    video_published_at: None,
+                }),
+                etag: None,
+                id: None,
+                kind: None,
+                snippet: Some(PlaylistItemSnippet {
+                    channel_id: None,
+                    channel_title: None,
+                    description: None,
+                    playlist_id: Some(id.clone()),
+                    position: None,
+                    published_at: None,
+                    resource_id: Some(ResourceId {
+                        channel_id: None,
+                        kind: Some("youtube#video".into()),
+                        playlist_id: None,
+                        video_id: Some(track),
+                    }),
+                    thumbnails: None,
+                    title: None,
+                    video_owner_channel_id: None,
+                    video_owner_channel_title: None,
+                }),
+                status: None,
+            })
+            .doit()
+            .await?;
+    }
+
+    Ok("https://www.youtube.com/playlist?list=".to_string() + &id)
 }

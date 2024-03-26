@@ -11,6 +11,11 @@ use std::error::Error;
 use std::net::TcpListener;
 use std::time::Instant;
 
+pub struct Playlist {
+    pub name: String,
+    pub tracks: Vec<Isrc>,
+}
+
 struct ClientDetails {
     id: String,
     secret: String,
@@ -70,7 +75,7 @@ async fn authenticate() -> Result<Client<Token, AuthCodeFlow, NoVerifier>, Box<d
     }
 }
 
-pub async fn get_saved_tracks() -> Result<Vec<Isrc>, Box<dyn Error>> {
+pub async fn get_saved_tracks() -> Result<Playlist, Box<dyn Error>> {
     let mut spot = authenticate().await?;
 
     // isrcs of songs that have them
@@ -112,12 +117,16 @@ pub async fn get_saved_tracks() -> Result<Vec<Isrc>, Box<dyn Error>> {
     println! {"saved tracks with isrcs: {}", saved.len()};
     println! {"saved tracks missing isrcs: {}", missing.len()};
 
-    Ok(saved)
+    Ok(Playlist {
+        name: "Liked Tracks".into(),
+        tracks: saved,
+    })
 }
 
-pub async fn get_playlist(playlist_id: &str) -> Result<Vec<Isrc>, Box<dyn Error>> {
+pub async fn get_playlist(playlist_id: &str) -> Result<Playlist, Box<dyn Error>> {
     let mut spot = authenticate().await?;
     let mut playlist: Vec<Isrc> = vec![];
+    let name: String = spot.playlist(playlist_id).get().await?.name;
     // spotify ids of songs without isrcs
     let mut missing: Vec<String> = vec![];
     let mut offset = 0;
@@ -165,5 +174,8 @@ pub async fn get_playlist(playlist_id: &str) -> Result<Vec<Isrc>, Box<dyn Error>
     println! {"tracks with isrcs: {}", playlist.len()};
     println! {"tracks missing isrcs: {}", missing.len()};
 
-    Ok(playlist)
+    Ok(Playlist {
+        name,
+        tracks: playlist,
+    })
 }
