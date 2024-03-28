@@ -6,12 +6,8 @@ use google_youtube3::hyper::client::HttpConnector;
 use google_youtube3::{hyper, hyper_rustls, oauth2, YouTube};
 use isrc::Isrc;
 // use std::env;
+use crate::utils::PlaylistResults;
 use std::error::Error;
-
-pub struct PlaylistResults {
-    pub found: Vec<String>,
-    pub missing: Vec<Isrc>,
-}
 
 // fn get_envs() -> Result<String, Box<dyn Error>> {
 //     match env::var("YOUTUBE_KEY") {
@@ -73,8 +69,10 @@ async fn authenticate(
 
 pub async fn playlist_to_ids(playlist: Vec<Isrc>) -> Result<PlaylistResults, Box<dyn Error>> {
     let youtube = authenticate().await?;
-    let mut found: Vec<String> = vec![];
-    let mut missing: Vec<Isrc> = vec![];
+    let mut ids: PlaylistResults = PlaylistResults {
+        found: vec![],
+        missing: vec![],
+    };
 
     for code in playlist {
         match code {
@@ -89,20 +87,20 @@ pub async fn playlist_to_ids(playlist: Vec<Isrc>) -> Result<PlaylistResults, Box
                 if res.1.page_info.unwrap().total_results.unwrap() != 0 {
                     let items = res.1.items.unwrap();
                     if items.len() == 0 {
-                        missing.push(Isrc::Code(code));
+                        ids.missing.push(Isrc::Code(code));
                     } else {
                         let resource = items[0].id.as_ref().unwrap();
                         let id = resource.video_id.clone().unwrap();
-                        found.push(id.to_owned());
+                        ids.found.push(id.to_owned());
                     }
                 } else {
-                    missing.push(Isrc::Code(code));
+                    ids.missing.push(Isrc::Code(code));
                 }
             }
         }
     }
 
-    Ok(PlaylistResults { found, missing })
+    Ok(ids)
 }
 
 pub async fn create_playlist(

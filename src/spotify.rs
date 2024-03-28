@@ -1,9 +1,12 @@
-use crate::utils::{get_url_header, Playlist};
+use crate::utils::{get_url_header, Playlist, PlaylistResults};
 use isrc::Isrc;
 use spotify_rs::{
     auth::{AuthCodeFlow, NoVerifier, Token},
     client::Client,
-    model::PlayableItem,
+    model::{
+        search::{Item, SearchResults},
+        track, PlayableItem,
+    },
     AuthCodeClient, RedirectUrl,
 };
 use std::env;
@@ -41,7 +44,12 @@ async fn authenticate() -> Result<Client<Token, AuthCodeFlow, NoVerifier>, Box<d
 
     let redirect_url = RedirectUrl::new("http://localhost:".to_owned() + port)?;
     let auto_refresh = true;
-    let scopes = vec!["user-library-read", "playlist-read-private"];
+    let scopes = vec![
+        "user-library-read",
+        "playlist-read-private",
+        "playlist-modify-private",
+        "user-library-modify",
+    ];
     let auth_code_flow = AuthCodeFlow::new(client_details.id, client_details.secret, scopes);
     let (client, url) = AuthCodeClient::new(auth_code_flow, redirect_url, auto_refresh);
 
@@ -78,7 +86,6 @@ pub async fn get_saved_tracks() -> Result<Playlist, Box<dyn Error>> {
     // spotify ids of songs without isrcs
     let mut missing: Vec<String> = vec![];
     let mut offset = 0;
-    let now = Instant::now();
     loop {
         println! {"Fetching tracks {} to {}", offset, offset+50};
         let current = spot.saved_tracks().offset(offset).limit(50).get().await?;
@@ -108,10 +115,6 @@ pub async fn get_saved_tracks() -> Result<Playlist, Box<dyn Error>> {
         }
     }
 
-    println! {"time taken: {}s", now.elapsed().as_secs()};
-    println! {"saved tracks with isrcs: {}", saved.len()};
-    println! {"saved tracks missing isrcs: {}", missing.len()};
-
     Ok(Playlist {
         name: "Liked Tracks".into(),
         tracks: saved,
@@ -125,7 +128,6 @@ pub async fn get_playlist(playlist_id: &str) -> Result<Playlist, Box<dyn Error>>
     // spotify ids of songs without isrcs
     let mut missing: Vec<String> = vec![];
     let mut offset = 0;
-    let now = Instant::now();
     loop {
         println! {"Fetching tracks {} to {}", offset, offset+50};
         let current = spot
@@ -165,12 +167,82 @@ pub async fn get_playlist(playlist_id: &str) -> Result<Playlist, Box<dyn Error>>
         }
     }
 
-    println! {"time taken: {}s", now.elapsed().as_secs()};
-    println! {"tracks with isrcs: {}", playlist.len()};
-    println! {"tracks missing isrcs: {}", missing.len()};
-
     Ok(Playlist {
         name,
         tracks: playlist,
     })
+}
+
+pub async fn playlist_to_ids(playlist: Vec<Isrc>) -> Result<PlaylistResults, Box<dyn Error>> {
+    let mut spot = authenticate().await?;
+    let mut ids: PlaylistResults = PlaylistResults {
+        found: vec![],
+        missing: vec![],
+    };
+
+    for code in playlist {
+        match code {
+            Isrc::Code(code) => {
+                let res = spot.search(&code, &[Item::Track]).get().await?;
+                if res.tracks.is_none() {
+                    ids.missing.push(Isrc::Code(code));
+                } else {
+                    let tracks = res.tracks.unwrap().items;
+                    if (tracks.len() == 0) {
+                        ids.missing.push(Isrc::Code(code));
+                    } else {
+                        ids.found.push(tracks[0].id.clone());
+                    }
+                }
+            }
+        }
+    }
+    Ok(ids)
+}
+
+pub async fn create_playlist(
+    playlist_name: &str,
+    ids: Vec<String>,
+) -> Result<String, Box<dyn Error>> {
+    let mut spot = authenticate().await?;
+    let user_id = spot.get_current_user_profile().await?.id;
+    let playlist = spot
+        .create_playlist(user_id, playlist_name)
+        .public(false)
+        .send()
+        .await?;
+    let playlist_id = playlist.id;
+    // spotify api allows adding up to 100 tracks per req
+    let mut offset = 0;
+    while offset < ids.len() {
+        let end: usize;
+        if offset + 100 < ids.len() {
+            end = offset + 100;
+        } else {
+            end = ids.len();
+        }
+        spot.add_items_to_playlist(&playlist_id, &ids[offset..end])
+            .send()
+            .await?;
+        offset += 100;
+    }
+    Ok(playlist.external_urls.spotify)
+}
+
+pub async fn add_to_liked(ids: Vec<String>) -> Result<String, Box<dyn Error>> {
+    let mut spot = authenticate().await?;
+    // spotify api allows saving up to 50 tracks per req
+    let mut offset = 0;
+    while offset < ids.len() {
+        let end: usize;
+        if offset + 50 < ids.len() {
+            end = offset + 50;
+        } else {
+            end = ids.len();
+        }
+        spot.save_tracks(&ids[offset..end]).await?;
+        offset += 50;
+    }
+
+    Ok("https://open.spotify.com/collection/tracks".into())
 }

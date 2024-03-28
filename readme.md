@@ -10,7 +10,8 @@ I think that only songs that you can see marked with a content id on youtube hav
 This means that there may be false negatives where a track is not found, but there CANNOT be false positives where a track is substituted with an incorrect one; an ISRC will always match the exact recording of a track.
 
 ## Issues
-- Also currently idk how you could add songs to your saved tracks on yt music but that would be nice
+- Also currently idk how you could add songs to your saved tracks on yt music but that would be nice.
+  Spotify supports this but I don't think ytm does.
 - the yt search function is api expensive (100 credits), maybe if ytm devs <3 this enough they could add a cheaper search that retrieves the one or none track matching the ISRC.
 - spotify auth isnt cached bc i cba for a PoC
 

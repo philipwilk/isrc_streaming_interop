@@ -35,14 +35,20 @@ pub async fn execute(source: &str, dest: &str, id: &str) -> Result<(), Box<dyn E
             url = youtube::create_playlist(&playlist.name, youtube_ids.found).await?;
         }
         "spotify" => {
-            todo! {};
+            let spotify_ids = spotify::playlist_to_ids(playlist.tracks).await?;
+            println! {"Following tracks are missing or not tagged on spotify: {:?}", &spotify_ids.missing};
+            if id == "liked" {
+                url = spotify::add_to_liked(spotify_ids.found).await?;
+            } else {
+                url = spotify::create_playlist(&playlist.name, spotify_ids.found).await?;
+            }
         }
         x => {
             return Err(("Destination ".to_string() + &x + " is not implemented!").into());
         }
     }
 
-    println! {"Moved playlist {} from {} to {}.\nNew url is {}", &playlist.name, &source, &dest, &url};
+    println! {"Moved playlist {} from {} to {}.\nUrl is {}", &playlist.name, &source, &dest, &url};
     Ok(())
 }
 

@@ -8,6 +8,11 @@ pub struct Playlist {
     pub tracks: Vec<Isrc>,
 }
 
+pub struct PlaylistResults {
+    pub found: Vec<String>,
+    pub missing: Vec<Isrc>,
+}
+
 pub fn get_url_header(listener: TcpListener) -> Result<String, Box<dyn Error>> {
     for stream in listener.incoming() {
         let mut stream = stream?;
