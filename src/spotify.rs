@@ -1,4 +1,4 @@
-use crate::utils::get_url_header;
+use crate::utils::{get_url_header, Playlist};
 use isrc::Isrc;
 use spotify_rs::{
     auth::{AuthCodeFlow, NoVerifier, Token},
@@ -10,11 +10,6 @@ use std::env;
 use std::error::Error;
 use std::net::TcpListener;
 use std::time::Instant;
-
-pub struct Playlist {
-    pub name: String,
-    pub tracks: Vec<Isrc>,
-}
 
 struct ClientDetails {
     id: String,

@@ -88,9 +88,13 @@ pub async fn playlist_to_ids(playlist: Vec<Isrc>) -> Result<PlaylistResults, Box
                     .await?;
                 if res.1.page_info.unwrap().total_results.unwrap() != 0 {
                     let items = res.1.items.unwrap();
-                    let resource = items[0].id.as_ref().unwrap();
-                    let id = resource.video_id.clone().unwrap();
-                    found.push(id.to_owned());
+                    if items.len() == 0 {
+                        missing.push(Isrc::Code(code));
+                    } else {
+                        let resource = items[0].id.as_ref().unwrap();
+                        let id = resource.video_id.clone().unwrap();
+                        found.push(id.to_owned());
+                    }
                 } else {
                     missing.push(Isrc::Code(code));
                 }
@@ -102,7 +106,7 @@ pub async fn playlist_to_ids(playlist: Vec<Isrc>) -> Result<PlaylistResults, Box
 }
 
 pub async fn create_playlist(
-    playlist_name: String,
+    playlist_name: &str,
     tracks: Vec<String>,
 ) -> Result<String, Box<dyn Error>> {
     let youtube = authenticate().await?;
@@ -124,7 +128,7 @@ pub async fn create_playlist(
             tags: None,
             thumbnail_video_id: None,
             thumbnails: None,
-            title: Some(playlist_name),
+            title: Some(playlist_name.to_string()),
         }),
         status: Some(PlaylistStatus {
             privacy_status: Some("private".into()),

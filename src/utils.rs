@@ -1,6 +1,12 @@
+use isrc::Isrc;
 use std::error::Error;
 use std::io::{BufRead, BufReader};
 use std::net::TcpListener;
+
+pub struct Playlist {
+    pub name: String,
+    pub tracks: Vec<Isrc>,
+}
 
 pub fn get_url_header(listener: TcpListener) -> Result<String, Box<dyn Error>> {
     for stream in listener.incoming() {
